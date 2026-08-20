@@ -102,3 +102,16 @@ pub struct BomLineDto {
   pub total_qty: f64,
   pub unit: String,
 }
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogItemDto {
+  pub id: String,
+  pub manufacturer: String,
+  pub part_number: String,
+  pub description: Option<String>,
+  pub rating_json: Option<String>,
+  pub list_price: Option<f64>,
+  pub category_code: String,
+  pub symbol_type: Option<String>,
+}

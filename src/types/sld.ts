@@ -19,21 +19,16 @@ export interface SldDevice {
   tag: string;
   rating?: string;
   catalogItemId?: string;
-}
-
-export interface SldFeeder {
-  id: string;
-  busbarSectionId?: string;
-  tag: string;
-  ratedCurrentA?: number;
-  sizeLabel?: string;
-  devices: SldDevice[];
+  manufacturer?: string;
+  partNumber?: string;
+  description?: string;
 }
 
 export interface SldContent {
   version: number;
   incomingLabel?: string;
   incomingVoltage?: string;
+  manufacturerDefault?: string;
   feeders: SldFeeder[];
 }
 
@@ -91,8 +86,28 @@ export const SLD_PALETTE: SldPaletteItem[] = [
   },
 ];
 
+export interface SldFeeder {
+  id: string;
+  busbarSectionId?: string;
+  tag: string;
+  ratedCurrentA?: number;
+  sizeLabel?: string;
+  devices: SldDevice[];
+}
+
+export interface CatalogItemDto {
+  id: string;
+  manufacturer: string;
+  partNumber: string;
+  description: string | null;
+  ratingJson: string | null;
+  listPrice: number | null;
+  categoryCode: string;
+  symbolType: string | null;
+}
+
 export function emptySldContent(): SldContent {
-  return { version: 1, feeders: [] };
+  return { version: 1, feeders: [], manufacturerDefault: "ABB" };
 }
 
 export function symbolTypeLabel(type: SldSymbolType): string {

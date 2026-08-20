@@ -28,6 +28,7 @@ pub fn run() {
       commands::save_sld_content,
       commands::complete_sld,
       commands::list_sld_palette,
+      commands::list_catalog_items,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -308,6 +308,9 @@ mod tests {
           tag: "M1".into(),
           rating: None,
           catalog_item_id: None,
+          manufacturer: None,
+          part_number: None,
+          description: None,
         }],
       }],
     };

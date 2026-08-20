@@ -33,8 +33,20 @@ mod tests {
         |r| r.get(0),
       )
       .unwrap();
-    assert!(json.contains("Q1"));
-    assert!(json.contains("mccb"));
+    assert!(json.contains("1SDA068337R1") || json.contains("ABB"));
+  }
+
+  #[test]
+  fn abb_catalog_has_tmax() {
+    let conn = mem_db();
+    let count: i64 = conn
+      .query_row(
+        "SELECT COUNT(*) FROM catalog_items WHERE manufacturer = 'ABB'",
+        [],
+        |r| r.get(0),
+      )
+      .unwrap();
+    assert!(count >= 5);
   }
 
   #[test]

@@ -8,6 +8,9 @@ pub struct SldDevice {
   pub tag: String,
   pub rating: Option<String>,
   pub catalog_item_id: Option<String>,
+  pub manufacturer: Option<String>,
+  pub part_number: Option<String>,
+  pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
