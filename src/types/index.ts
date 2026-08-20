@@ -13,6 +13,19 @@ export interface SheetNode {
   sheetNo: string;
   displayName: string;
   title: string | null;
+  sheetType: string;
+  sortOrder: number;
+  schematicStatus: string;
+}
+
+export interface SchematicSheetDto {
+  sheet: SheetNode;
+  panelCode: string;
+  panelName: string | null;
+  drawingNo: string;
+  productionQty: number;
+  busbarSections: BusbarSectionNode[];
+  gridUnitMm: number;
 }
 
 export interface PanelInstanceNode {

@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { SingleLineCanvas } from "./components/SingleLineCanvas";
+import {
+  canOpenSheet,
+  findEntrySheet,
+  sheetLockedReason,
+  sheetTypeLabel,
+  SHEET_TYPES,
+} from "./lib/sheetWorkflow";
 import type {
   BomLineDto,
   DrawingNode,
   PanelDesignNode,
   ProjectSummary,
   ProjectTree,
+  SchematicSheetDto,
+  SheetNode,
 } from "./types";
 import "./App.css";
 
@@ -13,6 +23,7 @@ type Selected =
   | { kind: "project"; project: ProjectSummary }
   | { kind: "drawing"; drawing: DrawingNode }
   | { kind: "panel"; panel: PanelDesignNode; drawingNo: string }
+  | { kind: "sheet"; panel: PanelDesignNode; drawingNo: string; sheet: SheetNode }
   | null;
 
 function App() {
@@ -20,10 +31,33 @@ function App() {
   const [tree, setTree] = useState<ProjectTree | null>(null);
   const [bom, setBom] = useState<BomLineDto[]>([]);
   const [selected, setSelected] = useState<Selected>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-  });
+  const [schematic, setSchematic] = useState<SchematicSheetDto | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const openSchematic = useCallback(async (sheetId: string) => {
+    const data = await invoke<SchematicSheetDto>("get_schematic_sheet", {
+      sheetId,
+    });
+    setSchematic(data);
+    return data;
+  }, []);
+
+  const openPanelEntry = useCallback(
+    async (panel: PanelDesignNode, drawingNo: string) => {
+      const entry = findEntrySheet(panel.sheets);
+      if (!entry) {
+        setError("Panel นี้ยังไม่มีหน้า Single Line Diagram");
+        setSchematic(null);
+        setSelected({ kind: "panel", panel, drawingNo });
+        return;
+      }
+      await openSchematic(entry.id);
+      setSelected({ kind: "sheet", panel, drawingNo, sheet: entry });
+    },
+    [openSchematic],
+  );
 
   async function loadProjects() {
     setLoading(true);
@@ -48,12 +82,17 @@ function App() {
       const data = await invoke<ProjectTree>("get_project_tree", { projectId });
       setTree(data);
       setSelected({ kind: "project", project: data.project });
+      setSchematic(null);
       setExpanded({
         [data.project.id]: true,
         ...Object.fromEntries(data.drawings.map((d) => [d.id, true])),
       });
       if (data.drawings[0]) {
         await loadBom(data.drawings[0].id);
+        const firstPanel = data.drawings[0].panels[0];
+        if (firstPanel) {
+          await openPanelEntry(firstPanel, data.drawings[0].drawingNo);
+        }
       }
     } catch (e) {
       setError(String(e));
@@ -80,16 +119,39 @@ function App() {
     }
   }
 
+  async function handleSheetClick(
+    panel: PanelDesignNode,
+    drawingNo: string,
+    sheet: SheetNode,
+  ) {
+    const locked = sheetLockedReason(panel.sheets, sheet);
+    if (locked) {
+      setError(locked);
+      const entry = findEntrySheet(panel.sheets);
+      if (entry) {
+        await openSchematic(entry.id);
+        setSelected({ kind: "sheet", panel, drawingNo, sheet: entry });
+      }
+      return;
+    }
+    setError("");
+    await openSchematic(sheet.id);
+    setSelected({ kind: "sheet", panel, drawingNo, sheet });
+  }
+
   function toggle(id: string) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }
+
+  const showSld =
+    schematic?.sheet.sheetType === SHEET_TYPES.SINGLE_LINE && schematic;
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <div>
           <h1>TANON</h1>
-          <p>Electrical Panel Schematic &amp; Production</p>
+          <p>Electrical Panel Schematic — เริ่มจาก Single Line Diagram</p>
         </div>
         <div className="header-actions">
           <button onClick={loadProjects} disabled={loading}>
@@ -103,12 +165,12 @@ function App() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="workspace">
+      <div className="workspace workspace-3col">
         <aside className="tree-panel">
           <h2>Project Tree</h2>
           {!tree && (
             <p className="muted">
-              กด &quot;โหลดข้อมูล&quot; เพื่อดูตัวอย่าง Project E22 → Drawing E22-111
+              กด &quot;โหลดข้อมูล&quot; — schematic จะเปิดที่หน้า Single Line อัตโนมัติ
             </p>
           )}
 
@@ -119,6 +181,7 @@ function App() {
                   className={`tree-btn ${selected?.kind === "project" ? "active" : ""}`}
                   onClick={() => {
                     setSelected({ kind: "project", project: tree.project });
+                    setSchematic(null);
                   }}
                 >
                   📁 {tree.project.name} ({tree.project.code})
@@ -138,6 +201,7 @@ function App() {
                           className={`tree-btn ${selected?.kind === "drawing" && selected.drawing.id === drawing.id ? "active" : ""}`}
                           onClick={() => {
                             setSelected({ kind: "drawing", drawing });
+                            setSchematic(null);
                             loadBom(drawing.id);
                           }}
                         >
@@ -150,13 +214,7 @@ function App() {
                               <li>
                                 <button
                                   className={`tree-btn ${selected?.kind === "panel" && selected.panel.id === panel.id ? "active" : ""}`}
-                                  onClick={() =>
-                                    setSelected({
-                                      kind: "panel",
-                                      panel,
-                                      drawingNo: drawing.drawingNo,
-                                    })
-                                  }
+                                  onClick={() => openPanelEntry(panel, drawing.drawingNo)}
                                 >
                                   🧩 {panel.panelCode}
                                   {panel.productionQty > 1
@@ -165,11 +223,40 @@ function App() {
                                 </button>
                                 {expanded[panel.id] !== false && (
                                   <ul>
-                                    {panel.sheets.map((sheet) => (
-                                      <li key={sheet.id} className="leaf">
-                                        📄 {sheet.displayName} — {sheet.title}
-                                      </li>
-                                    ))}
+                                    {panel.sheets.map((sheet) => {
+                                      const isEntry =
+                                        sheet.sheetType === SHEET_TYPES.SINGLE_LINE;
+                                      const locked = !canOpenSheet(
+                                        panel.sheets,
+                                        sheet,
+                                      );
+                                      const isActive =
+                                        selected?.kind === "sheet" &&
+                                        selected.sheet.id === sheet.id;
+                                      return (
+                                        <li key={sheet.id}>
+                                          <button
+                                            className={`tree-btn leaf-btn ${isActive ? "active" : ""} ${locked ? "locked" : ""}`}
+                                            onClick={() =>
+                                              handleSheetClick(
+                                                panel,
+                                                drawing.drawingNo,
+                                                sheet,
+                                              )
+                                            }
+                                          >
+                                            {isEntry ? "⚡" : "📄"}{" "}
+                                            {sheet.displayName}
+                                            {isEntry && (
+                                              <span className="entry-tag">SLD</span>
+                                            )}
+                                            {locked && (
+                                              <span className="lock-tag">🔒</span>
+                                            )}
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
                                     {panel.instances.length > 0 && (
                                       <li className="leaf section-label">
                                         Instances:
@@ -193,9 +280,56 @@ function App() {
           )}
         </aside>
 
-        <main className="detail-panel">
+        <section className="schematic-panel">
+          <h2>Schematic</h2>
+          {!schematic && (
+            <div className="schematic-placeholder">
+              <p>เลือก Panel เพื่อเริ่มออกแบบที่หน้า <strong>Single Line Diagram</strong></p>
+            </div>
+          )}
+          {showSld && (
+            <SingleLineCanvas
+              panelCode={schematic.panelCode}
+              sheetName={schematic.sheet.displayName}
+              busbarSections={schematic.busbarSections}
+              gridUnitMm={schematic.gridUnitMm}
+            />
+          )}
+          {schematic && !showSld && (
+            <div className="schematic-placeholder">
+              <p>
+                หน้า {sheetTypeLabel(schematic.sheet.sheetType)} — จะเปิดได้หลังออกแบบ
+                Single Line เสร็จ
+              </p>
+            </div>
+          )}
+        </section>
+
+        <aside className="detail-panel">
           <h2>รายละเอียด</h2>
           {!selected && <p className="muted">เลือกรายการจาก tree</p>}
+
+          {selected?.kind === "sheet" && schematic && (
+            <div className="card">
+              <h3>{schematic.sheet.displayName}</h3>
+              <dl>
+                <dt>ประเภท</dt>
+                <dd>{sheetTypeLabel(schematic.sheet.sheetType)}</dd>
+                <dt>Panel</dt>
+                <dd>{schematic.panelCode}</dd>
+                <dt>Drawing</dt>
+                <dd>{schematic.drawingNo}</dd>
+                <dt>Status</dt>
+                <dd>{schematic.sheet.schematicStatus}</dd>
+              </dl>
+              {schematic.sheet.sheetType === SHEET_TYPES.SINGLE_LINE && (
+                <p className="workflow-note">
+                  หน้าแรกของ schematic — กำหนด busbar / feeder ก่อนไปหน้า Power หรือ
+                  Control
+                </p>
+              )}
+            </div>
+          )}
 
           {selected?.kind === "project" && (
             <div className="card">
@@ -209,8 +343,6 @@ function App() {
                 <dd>{selected.project.symbolStandard.toUpperCase()}</dd>
                 <dt>Busbar Standard</dt>
                 <dd>{selected.project.busbarRatingStandard}</dd>
-                <dt>Status</dt>
-                <dd>{selected.project.status}</dd>
               </dl>
             </div>
           )}
@@ -220,26 +352,25 @@ function App() {
               <h3>
                 Drawing {selected.drawing.drawingNo} — Rev {selected.drawing.revision}
               </h3>
-              <p>{selected.drawing.title}</p>
-              <p>Panels: {selected.drawing.panels.length}</p>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Panel</th>
                     <th>Qty</th>
-                    <th>Sheets</th>
-                    <th>Busbar Sections</th>
+                    <th>Entry Sheet</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selected.drawing.panels.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.panelCode}</td>
-                      <td>{p.productionQty}</td>
-                      <td>{p.sheets.length}</td>
-                      <td>{p.busbarSections.length}</td>
-                    </tr>
-                  ))}
+                  {selected.drawing.panels.map((p) => {
+                    const entry = findEntrySheet(p.sheets);
+                    return (
+                      <tr key={p.id}>
+                        <td>{p.panelCode}</td>
+                        <td>{p.productionQty}</td>
+                        <td>{entry?.displayName ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -250,29 +381,15 @@ function App() {
               <h3>
                 {selected.panel.panelCode} — {selected.panel.name}
               </h3>
-              <p>
-                Drawing {selected.drawingNo} | Production Qty:{" "}
-                <strong>{selected.panel.productionQty}</strong>
+              <p className="workflow-note">
+                คลิก panel เพื่อเปิด Single Line Diagram เป็นหน้าแรก
               </p>
-
-              <h4>Sheets</h4>
-              <ul>
-                {selected.panel.sheets.map((s) => (
-                  <li key={s.id}>
-                    {s.displayName}: {s.title}
-                  </li>
-                ))}
-              </ul>
-
-              <h4>Busbar (DIN EN 61439)</h4>
+              <h4>Busbar</h4>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Role</th>
-                    <th>Size</th>
                     <th>Rating</th>
-                    <th>Icw</th>
-                    <th>Length</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,11 +400,8 @@ function App() {
                         {b.feederTag ? ` (${b.feederTag})` : ""}
                       </td>
                       <td>
-                        {b.sizeLabel} ×{b.barsPerPhase}
+                        {b.ratedCurrentA} A — {b.sizeLabel}
                       </td>
-                      <td>{b.ratedCurrentA} A</td>
-                      <td>{b.icwKa ?? "—"} kA</td>
-                      <td>{b.lengthMm} mm</td>
                     </tr>
                   ))}
                 </tbody>
@@ -302,9 +416,6 @@ function App() {
                 <thead>
                   <tr>
                     <th>Part</th>
-                    <th>Panel</th>
-                    <th>Qty/Panel</th>
-                    <th>×Panel Qty</th>
                     <th>Total</th>
                   </tr>
                 </thead>
@@ -313,17 +424,10 @@ function App() {
                     <tr key={i}>
                       <td>
                         <div>{line.partNumber}</div>
-                        <small>{line.description}</small>
+                        <small>{line.panelCode}</small>
                       </td>
-                      <td>{line.panelCode}</td>
                       <td>
-                        {line.qtyPerPanel} {line.unit}
-                      </td>
-                      <td>{line.panelQty}</td>
-                      <td>
-                        <strong>
-                          {line.totalQty} {line.unit}
-                        </strong>
+                        {line.totalQty} {line.unit}
                       </td>
                     </tr>
                   ))}
@@ -331,11 +435,15 @@ function App() {
               </table>
             </div>
           )}
-        </main>
+        </aside>
       </div>
 
       <footer className="status-bar">
-        {loading ? "กำลังโหลด..." : `Projects: ${projects.length}`}
+        {loading
+          ? "กำลังโหลด..."
+          : schematic
+            ? `Schematic: ${schematic.sheet.displayName} (${sheetTypeLabel(schematic.sheet.sheetType)})`
+            : `Projects: ${projects.length}`}
       </footer>
     </div>
   );

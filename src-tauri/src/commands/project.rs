@@ -174,7 +174,9 @@ fn load_panels(conn: &Connection, drawing_id: &str) -> Result<Vec<PanelDesignNod
 fn load_sheets(conn: &Connection, panel_design_id: &str) -> Result<Vec<SheetNode>, String> {
   let mut stmt = conn
     .prepare(
-      "SELECT id, sheet_no, display_name, title
+      "SELECT id, sheet_no, display_name, title,
+              COALESCE(sheet_type, 'detail'), sort_order,
+              COALESCE(schematic_status, 'empty')
        FROM panel_sheets WHERE panel_design_id = ?1 ORDER BY sort_order, sheet_no",
     )
     .map_err(|e| e.to_string())?;
@@ -186,6 +188,9 @@ fn load_sheets(conn: &Connection, panel_design_id: &str) -> Result<Vec<SheetNode
         sheet_no: row.get(1)?,
         display_name: row.get(2)?,
         title: row.get(3)?,
+        sheet_type: row.get(4)?,
+        sort_order: row.get(5)?,
+        schematic_status: row.get(6)?,
       })
     })
     .map_err(|e| e.to_string())?;
@@ -216,7 +221,7 @@ fn load_instances(conn: &Connection, panel_design_id: &str) -> Result<Vec<PanelI
   rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
-fn load_busbar_sections(conn: &Connection, panel_design_id: &str) -> Result<Vec<BusbarSectionNode>, String> {
+pub fn load_busbar_sections(conn: &Connection, panel_design_id: &str) -> Result<Vec<BusbarSectionNode>, String> {
   let mut stmt = conn
     .prepare(
       "SELECT s.id, s.section_role, s.feeder_tag, sz.label, r.rated_current_a, r.icw_ka,

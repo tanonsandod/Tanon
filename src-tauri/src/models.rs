@@ -29,6 +29,21 @@ pub struct SheetNode {
   pub sheet_no: String,
   pub display_name: String,
   pub title: Option<String>,
+  pub sheet_type: String,
+  pub sort_order: i64,
+  pub schematic_status: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SchematicSheetDto {
+  pub sheet: SheetNode,
+  pub panel_code: String,
+  pub panel_name: Option<String>,
+  pub drawing_no: String,
+  pub production_qty: i64,
+  pub busbar_sections: Vec<BusbarSectionNode>,
+  pub grid_unit_mm: f64,
 }
 
 #[derive(Debug, Serialize, Clone)]

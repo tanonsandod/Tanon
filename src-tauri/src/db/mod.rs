@@ -35,9 +35,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
 
-  let migrations: [(&str, &str); 2] = [
+  let migrations: [(&str, &str); 3] = [
     ("001_initial", include_str!("../../migrations/001_initial.sql")),
     ("002_seed_e22", include_str!("../../migrations/002_seed_e22.sql")),
+    ("003_sheet_type", include_str!("../../migrations/003_sheet_type.sql")),
   ];
 
   for (version, sql) in migrations {

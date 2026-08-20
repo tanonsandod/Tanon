@@ -6,13 +6,21 @@ mod tests {
   fn mem_db() -> Connection {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+    run_migrations(&conn).unwrap();
     conn
-      .execute_batch(include_str!("../../migrations/001_initial.sql"))
+  }
+
+  #[test]
+  fn entry_sheet_is_single_line() {
+    let conn = mem_db();
+    let sheet_type: String = conn
+      .query_row(
+        "SELECT sheet_type FROM panel_sheets WHERE id = 'sh-a01'",
+        [],
+        |r| r.get(0),
+      )
       .unwrap();
-    conn
-      .execute_batch(include_str!("../../migrations/002_seed_e22.sql"))
-      .unwrap();
-    conn
+    assert_eq!(sheet_type, "single_line");
   }
 
   #[test]

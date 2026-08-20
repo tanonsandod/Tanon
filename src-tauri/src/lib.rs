@@ -22,6 +22,8 @@ pub fn run() {
       commands::get_project_tree,
       commands::get_drawing_bom,
       commands::reset_demo_data,
+      commands::get_schematic_sheet,
+      commands::get_panel_entry_sheet,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
