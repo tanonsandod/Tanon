@@ -1,0 +1,13 @@
+# Copy to %APPDATA%\Tanon\config.toml on each Windows client
+# Or set TANON_DATABASE_URL environment variable (takes priority).
+
+[database]
+# Option A — full connection string (recommended)
+url = "postgresql://tanon:tanon_secret@192.168.1.10:5432/tanon"
+
+# Option B — separate fields (used when url is omitted)
+# host = "192.168.1.10"
+# port = 5432
+# database = "tanon"
+# username = "tanon"
+# password = "tanon_secret"

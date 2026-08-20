@@ -1,49 +1,72 @@
 use crate::db::AppState;
 use crate::models::CatalogItemDto;
+use sqlx::Row;
 use tauri::State;
 
 #[tauri::command]
-pub fn list_catalog_items(
-  state: State<AppState>,
+pub async fn list_catalog_items(
+  state: State<'_, AppState>,
   manufacturer: Option<String>,
   symbol_type: Option<String>,
 ) -> Result<Vec<CatalogItemDto>, String> {
-  let conn = state.db.lock().map_err(|e| e.to_string())?;
-
-  let mut sql = String::from(
-    "SELECT c.id, c.manufacturer, c.part_number, c.description, c.rating_json, c.list_price,
-            ec.code AS category_code, sd.symbol_type
-     FROM catalog_items c
-     JOIN equipment_categories ec ON ec.id = c.category_id
-     LEFT JOIN symbol_definitions sd ON sd.id = c.default_symbol_id
-     WHERE c.is_active = 1",
-  );
-
-  if manufacturer.is_some() {
-    sql.push_str(" AND c.manufacturer = ?1");
-  }
-  if symbol_type.is_some() {
-    sql.push_str(if manufacturer.is_some() {
-      " AND sd.symbol_type LIKE ?2"
-    } else {
-      " AND sd.symbol_type LIKE ?1"
-    });
-  }
-  sql.push_str(" ORDER BY c.manufacturer, c.part_number");
-
   let sym_pattern = symbol_type.map(|s| map_palette_to_symbol_pattern(&s));
 
-  let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-
   let rows = match (&manufacturer, &sym_pattern) {
-    (Some(m), Some(p)) => stmt.query_map(rusqlite::params![m, p], map_row),
-    (Some(m), None) => stmt.query_map(rusqlite::params![m], map_row),
-    (None, Some(p)) => stmt.query_map(rusqlite::params![p], map_row),
-    (None, None) => stmt.query_map([], map_row),
-  }
-  .map_err(|e| e.to_string())?;
+    (Some(m), Some(p)) => sqlx::query(
+      "SELECT c.id, c.manufacturer, c.part_number, c.description, c.rating_json, c.list_price,
+              ec.code AS category_code, sd.symbol_type
+       FROM catalog_items c
+       JOIN equipment_categories ec ON ec.id = c.category_id
+       LEFT JOIN symbol_definitions sd ON sd.id = c.default_symbol_id
+       WHERE c.is_active = TRUE AND c.manufacturer = $1 AND sd.symbol_type LIKE $2
+       ORDER BY c.manufacturer, c.part_number",
+    )
+    .bind(m)
+    .bind(p)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| e.to_string())?,
+    (Some(m), None) => sqlx::query(
+      "SELECT c.id, c.manufacturer, c.part_number, c.description, c.rating_json, c.list_price,
+              ec.code AS category_code, sd.symbol_type
+       FROM catalog_items c
+       JOIN equipment_categories ec ON ec.id = c.category_id
+       LEFT JOIN symbol_definitions sd ON sd.id = c.default_symbol_id
+       WHERE c.is_active = TRUE AND c.manufacturer = $1
+       ORDER BY c.manufacturer, c.part_number",
+    )
+    .bind(m)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| e.to_string())?,
+    (None, Some(p)) => sqlx::query(
+      "SELECT c.id, c.manufacturer, c.part_number, c.description, c.rating_json, c.list_price,
+              ec.code AS category_code, sd.symbol_type
+       FROM catalog_items c
+       JOIN equipment_categories ec ON ec.id = c.category_id
+       LEFT JOIN symbol_definitions sd ON sd.id = c.default_symbol_id
+       WHERE c.is_active = TRUE AND sd.symbol_type LIKE $1
+       ORDER BY c.manufacturer, c.part_number",
+    )
+    .bind(p)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| e.to_string())?,
+    (None, None) => sqlx::query(
+      "SELECT c.id, c.manufacturer, c.part_number, c.description, c.rating_json, c.list_price,
+              ec.code AS category_code, sd.symbol_type
+       FROM catalog_items c
+       JOIN equipment_categories ec ON ec.id = c.category_id
+       LEFT JOIN symbol_definitions sd ON sd.id = c.default_symbol_id
+       WHERE c.is_active = TRUE
+       ORDER BY c.manufacturer, c.part_number",
+    )
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| e.to_string())?,
+  };
 
-  rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+  rows.iter().map(map_catalog_row).collect()
 }
 
 fn map_palette_to_symbol_pattern(symbol_type: &str) -> String {
@@ -59,15 +82,15 @@ fn map_palette_to_symbol_pattern(symbol_type: &str) -> String {
   }
 }
 
-fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CatalogItemDto> {
+fn map_catalog_row(row: &sqlx::postgres::PgRow) -> Result<CatalogItemDto, String> {
   Ok(CatalogItemDto {
-    id: row.get(0)?,
-    manufacturer: row.get(1)?,
-    part_number: row.get(2)?,
-    description: row.get(3)?,
-    rating_json: row.get(4)?,
-    list_price: row.get(5)?,
-    category_code: row.get(6)?,
-    symbol_type: row.get(7)?,
+    id: row.try_get("id").map_err(|e| e.to_string())?,
+    manufacturer: row.try_get("manufacturer").map_err(|e| e.to_string())?,
+    part_number: row.try_get("part_number").map_err(|e| e.to_string())?,
+    description: row.try_get("description").map_err(|e| e.to_string())?,
+    rating_json: row.try_get("rating_json").map_err(|e| e.to_string())?,
+    list_price: row.try_get("list_price").map_err(|e| e.to_string())?,
+    category_code: row.try_get("category_code").map_err(|e| e.to_string())?,
+    symbol_type: row.try_get("symbol_type").map_err(|e| e.to_string())?,
   })
 }

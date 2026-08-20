@@ -1,0 +1,23 @@
+# TANON central database server — run on Windows Server or a dedicated host.
+# Clients (Tanon.exe) connect directly; no application server required.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tanon-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tanon
+      POSTGRES_PASSWORD: tanon_secret
+      POSTGRES_DB: tanon
+    ports:
+      - "5432:5432"
+    volumes:
+      - tanon_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tanon -d tanon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tanon_pg_data:

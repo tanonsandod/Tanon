@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SldEditor } from "./components/sld/SldEditor";
+import { DatabaseSettings, DatabaseStatusChip } from "./components/DatabaseSettings";
 import {
   canOpenSheet,
   findEntrySheet,
@@ -35,6 +36,7 @@ function App() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [dbSettingsOpen, setDbSettingsOpen] = useState(false);
 
   const refreshTree = useCallback(async () => {
     if (!tree) return;
@@ -179,6 +181,10 @@ function App() {
           <p>Electrical Panel Schematic — เริ่มจาก Single Line Diagram</p>
         </div>
         <div className="header-actions">
+          <DatabaseStatusChip />
+          <button onClick={() => setDbSettingsOpen(true)} className="secondary">
+            ตั้งค่า DB
+          </button>
           <button onClick={loadProjects} disabled={loading}>
             โหลดข้อมูล
           </button>
@@ -470,6 +476,12 @@ function App() {
             ? `Schematic: ${schematic.sheet.displayName} (${sheetTypeLabel(schematic.sheet.sheetType)})`
             : `Projects: ${projects.length}`}
       </footer>
+
+      <DatabaseSettings
+        open={dbSettingsOpen}
+        onOpenChange={setDbSettingsOpen}
+        onConnected={loadProjects}
+      />
     </div>
   );
 }

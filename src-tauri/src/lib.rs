@@ -4,7 +4,6 @@ mod commands;
 mod sld;
 
 use db::{init_database, AppState};
-use std::sync::Mutex;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -12,10 +11,13 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
     .setup(|app| {
-      let conn = init_database(&app.handle())?;
-      app.manage(AppState {
-        db: Mutex::new(conn),
-      });
+      let handle = app.handle().clone();
+      tauri::async_runtime::block_on(async move {
+        let pool = init_database(&handle).await?;
+        handle.manage(AppState { pool });
+        Ok::<(), String>(())
+      })
+      .map_err(|e| e.to_string())?;
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -29,6 +31,10 @@ pub fn run() {
       commands::complete_sld,
       commands::list_sld_palette,
       commands::list_catalog_items,
+      commands::get_database_config,
+      commands::get_database_status,
+      commands::test_database_connection,
+      commands::save_database_config,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

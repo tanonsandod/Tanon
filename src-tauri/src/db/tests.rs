@@ -1,98 +1,73 @@
 #[cfg(test)]
 mod tests {
-  use crate::db::run_migrations;
-  use rusqlite::Connection;
+  use crate::db::migrate::run_migrations;
+  use sqlx::postgres::PgPoolOptions;
+  use std::env;
 
-  fn mem_db() -> Connection {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-    run_migrations(&conn).unwrap();
-    conn
-  }
+  #[tokio::test]
+  async fn postgres_integration_smoke() {
+    let url = env::var("TANON_DATABASE_URL").unwrap_or_else(|_| {
+      "postgresql://tanon:tanon_secret@localhost:5432/tanon".into()
+    });
+    let pool = PgPoolOptions::new()
+      .max_connections(5)
+      .connect(&url)
+      .await
+      .expect("connect postgres — start DB server first");
 
-  #[test]
-  fn entry_sheet_is_single_line() {
-    let conn = mem_db();
-    let sheet_type: String = conn
-      .query_row(
-        "SELECT sheet_type FROM panel_sheets WHERE id = 'sh-a01'",
-        [],
-        |r| r.get(0),
-      )
-      .unwrap();
+    run_migrations(&pool).await.expect("migrations");
+    run_migrations(&pool).await.expect("idempotent migrations");
+
+    let sheet_type: String = sqlx::query_scalar(
+      "SELECT sheet_type FROM panel_sheets WHERE id = 'sh-a01'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(sheet_type, "single_line");
-  }
 
-  #[test]
-  fn mdb1_sld_has_q1_breaker() {
-    let conn = mem_db();
-    let json: String = conn
-      .query_row(
-        "SELECT content_json FROM panel_sheets WHERE id = 'sh-a01'",
-        [],
-        |r| r.get(0),
-      )
-      .unwrap();
+    let json: String = sqlx::query_scalar(
+      "SELECT content_json::text FROM panel_sheets WHERE id = 'sh-a01'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert!(json.contains("1SDA068337R1") || json.contains("ABB"));
-  }
 
-  #[test]
-  fn abb_catalog_has_tmax() {
-    let conn = mem_db();
-    let count: i64 = conn
-      .query_row(
-        "SELECT COUNT(*) FROM catalog_items WHERE manufacturer = 'ABB'",
-        [],
-        |r| r.get(0),
-      )
-      .unwrap();
-    assert!(count >= 5);
-  }
+    let abb_count: i64 = sqlx::query_scalar(
+      "SELECT COUNT(*)::bigint FROM catalog_items WHERE manufacturer = 'ABB'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(abb_count >= 5);
 
-  #[test]
-  fn migrations_are_idempotent() {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-    run_migrations(&conn).unwrap();
-    run_migrations(&conn).unwrap();
-    let count: i64 = conn
-      .query_row("SELECT COUNT(*) FROM projects", [], |r| r.get(0))
-      .unwrap();
-    assert_eq!(count, 1);
-  }
-
-  #[test]
-  fn seed_creates_e22_project() {
-    let conn = mem_db();
-    let name: String = conn
-      .query_row("SELECT name FROM projects WHERE id = 'proj-e22'", [], |r| r.get(0))
+    let name: String = sqlx::query_scalar("SELECT name FROM projects WHERE id = 'proj-e22'")
+      .fetch_one(&pool)
+      .await
       .unwrap();
     assert_eq!(name, "E22 Factory");
-  }
 
-  #[test]
-  fn drawing_has_two_panels() {
-    let conn = mem_db();
-    let count: i64 = conn
-      .query_row(
-        "SELECT COUNT(*) FROM panel_designs WHERE drawing_id = 'drw-e22-111'",
-        [],
-        |r| r.get(0),
-      )
-      .unwrap();
-    assert_eq!(count, 2);
-  }
+    let panel_count: i64 = sqlx::query_scalar(
+      "SELECT COUNT(*)::bigint FROM panel_designs WHERE drawing_id = 'drw-e22-111'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(panel_count, 2);
 
-  #[test]
-  fn db_panel_has_production_qty_10() {
-    let conn = mem_db();
-    let qty: i64 = conn
-      .query_row(
-        "SELECT production_qty FROM panel_designs WHERE id = 'panel-db'",
-        [],
-        |r| r.get(0),
-      )
-      .unwrap();
+    let qty: i32 = sqlx::query_scalar(
+      "SELECT production_qty FROM panel_designs WHERE id = 'panel-db'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(qty, 10);
+
+    let project_count: i64 = sqlx::query_scalar("SELECT COUNT(*)::bigint FROM projects")
+      .fetch_one(&pool)
+      .await
+      .unwrap();
+    assert_eq!(project_count, 1);
   }
 }

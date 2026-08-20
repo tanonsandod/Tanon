@@ -1,99 +1,104 @@
-use rusqlite::{Connection, OpenFlags};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+mod config;
+mod migrate;
+
+pub use config::{
+  load_config, save_config, DatabaseConfig, DatabaseConfigDto, DatabaseStatusDto,
+};
+
+use migrate::{run_migrations, seed_count};
+use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
+use tauri::AppHandle;
 
 pub struct AppState {
-    pub db: Mutex<Connection>,
+  pub pool: PgPool,
 }
 
-pub fn db_path(app: &AppHandle) -> Result<PathBuf, String> {
-  let dir = app
-    .path()
-    .app_data_dir()
-    .map_err(|e| e.to_string())?;
-  fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-  Ok(dir.join("tanon.db"))
+pub async fn connect_pool(database_url: &str) -> Result<PgPool, String> {
+  PgPoolOptions::new()
+    .max_connections(8)
+    .connect(database_url)
+    .await
+    .map_err(|e| format!("เชื่อมต่อ DB ไม่ได้: {e}"))
 }
 
-pub fn open_connection(path: &PathBuf) -> Result<Connection, String> {
-  let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE;
-  let conn = Connection::open_with_flags(path, flags).map_err(|e| e.to_string())?;
-  conn.execute_batch("PRAGMA foreign_keys = ON;")
-    .map_err(|e| e.to_string())?;
-  Ok(conn)
+pub async fn init_database(app: &AppHandle) -> Result<PgPool, String> {
+  let cfg = load_config(app);
+  let url = cfg.database.connection_url()?;
+  let pool = connect_pool(&url).await?;
+  run_migrations(&pool).await?;
+  Ok(pool)
 }
 
-pub fn run_migrations(conn: &Connection) -> Result<(), String> {
-  conn
-    .execute_batch(
-      "CREATE TABLE IF NOT EXISTS schema_migrations (
-         version TEXT PRIMARY KEY,
-         applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-       );",
-    )
-    .map_err(|e| e.to_string())?;
-
-  let migrations: [(&str, &str); 5] = [
-    ("001_initial", include_str!("../../migrations/001_initial.sql")),
-    ("002_seed_e22", include_str!("../../migrations/002_seed_e22.sql")),
-    ("003_sheet_type", include_str!("../../migrations/003_sheet_type.sql")),
-    ("004_sld_catalog", include_str!("../../migrations/004_sld_catalog.sql")),
-    ("005_abb_catalog", include_str!("../../migrations/005_abb_catalog.sql")),
-  ];
-
-  for (version, sql) in migrations {
-    let applied: bool = conn
-      .query_row(
-        "SELECT COUNT(*) FROM schema_migrations WHERE version = ?1",
-        [version],
-        |row| row.get::<_, i64>(0),
-      )
-      .map(|c| c > 0)
-      .map_err(|e| e.to_string())?;
-
-    if applied {
-      continue;
+pub async fn database_status(pool: &PgPool) -> DatabaseStatusDto {
+  match sqlx::query_scalar::<_, String>("SELECT version()")
+    .fetch_one(pool)
+    .await
+  {
+    Ok(version) => {
+      let project_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*)::bigint FROM projects")
+        .fetch_one(pool)
+        .await
+        .ok();
+      DatabaseStatusDto {
+        connected: true,
+        server_version: Some(version),
+        project_count,
+        error: None,
+      }
     }
-
-    conn
-      .execute_batch(sql)
-      .map_err(|e| format!("migration {version} failed: {e}"))?;
-
-    conn
-      .execute(
-        "INSERT INTO schema_migrations (version) VALUES (?1)",
-        [version],
-      )
-      .map_err(|e| e.to_string())?;
+    Err(e) => DatabaseStatusDto {
+      connected: false,
+      server_version: None,
+      project_count: None,
+      error: Some(e.to_string()),
+    },
   }
-
-  Ok(())
 }
 
-pub fn seed_count(conn: &Connection) -> Result<i64, String> {
-  conn
-    .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
-    .map_err(|e| e.to_string())
-}
+pub async fn reset_demo_data(pool: &PgPool) -> Result<(), String> {
+  let sql = "DELETE FROM production_order_lines;
+DELETE FROM production_orders;
+DELETE FROM bom_lines;
+DELETE FROM busbar_placements;
+DELETE FROM panel_busbar_sections;
+DELETE FROM panel_busbar_configs;
+DELETE FROM wire_segments;
+DELETE FROM nets;
+DELETE FROM cross_references;
+DELETE FROM symbol_placements;
+DELETE FROM contact_instances;
+DELETE FROM device_instances;
+DELETE FROM panel_sheets;
+DELETE FROM panel_instances;
+DELETE FROM panel_designs;
+DELETE FROM drawing_revisions;
+DELETE FROM drawings;
+DELETE FROM project_activity;
+DELETE FROM project_catalog_overrides;
+DELETE FROM projects;";
+  sqlx::raw_sql(sql)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-pub fn seed_demo(conn: &Connection) -> Result<(), String> {
-  if seed_count(conn)? > 0 {
+  if seed_count(pool).await? > 0 {
     return Ok(());
   }
-  conn
-    .execute_batch(include_str!("../../migrations/002_seed_e22.sql"))
-    .map_err(|e| format!("seed failed: {e}"))?;
-  Ok(())
-}
 
-pub fn init_database(app: &AppHandle) -> Result<Connection, String> {
-  let path = db_path(app)?;
-  let conn = open_connection(&path)?;
-  run_migrations(&conn)?;
-  seed_demo(&conn)?;
-  Ok(conn)
+  sqlx::raw_sql(include_str!("../../migrations/postgres/002_seed_e22.sql"))
+    .execute(pool)
+    .await
+    .map_err(|e| format!("seed failed: {e}"))?;
+  sqlx::raw_sql(include_str!("../../migrations/postgres/003_sld_catalog.sql"))
+    .execute(pool)
+    .await
+    .map_err(|e| format!("sld catalog seed failed: {e}"))?;
+  sqlx::raw_sql(include_str!("../../migrations/postgres/004_abb_catalog.sql"))
+    .execute(pool)
+    .await
+    .map_err(|e| format!("abb catalog seed failed: {e}"))?;
+  Ok(())
 }
 
 #[cfg(test)]
