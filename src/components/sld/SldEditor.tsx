@@ -81,6 +81,8 @@ interface SldEditorProps {
   onSaved: (updated: SchematicSheetDto) => void;
   onCompleted: (updated: SchematicSheetDto) => void;
   onError: (msg: string) => void;
+  catalogItems?: CatalogItemDto[];
+  previewMode?: boolean;
 }
 
 function feederX(index: number, total: number): number {
@@ -131,6 +133,8 @@ export function SldEditor({
   onSaved,
   onCompleted,
   onError,
+  catalogItems,
+  previewMode,
 }: SldEditorProps) {
   const styles = useStyles();
   const [content, setContent] = useState<SldContent>(schematic.sldContent);
@@ -225,6 +229,10 @@ export function SldEditor({
   };
 
   async function handleSave() {
+    if (previewMode) {
+      onSaved({ ...schematic, sldContent: content });
+      return;
+    }
     setSaving(true);
     try {
       const updated = await invoke<SchematicSheetDto>("save_sld_content", {
@@ -240,6 +248,14 @@ export function SldEditor({
   }
 
   async function handleComplete() {
+    if (previewMode) {
+      onCompleted({
+        ...schematic,
+        sldContent: content,
+        sheet: { ...schematic.sheet, schematicStatus: "complete" },
+      });
+      return;
+    }
     setSaving(true);
     try {
       await invoke<SchematicSheetDto>("save_sld_content", {
@@ -438,6 +454,7 @@ export function SldEditor({
           selectedFeederTag={selectedFeeder?.tag ?? null}
           onPlace={placeAbbDevice}
           disabled={saving}
+          catalogItems={catalogItems}
         />
       </div>
     </div>

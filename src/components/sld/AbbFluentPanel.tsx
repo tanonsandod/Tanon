@@ -83,6 +83,8 @@ interface AbbFluentPanelProps {
   selectedFeederTag: string | null;
   onPlace: (item: CatalogItemDto, symbolType: SldSymbolType) => void;
   disabled?: boolean;
+  /** When set, skip Tauri invoke (preview / demo mode). */
+  catalogItems?: CatalogItemDto[];
 }
 
 function ratingFromJson(json: string | null): string {
@@ -111,6 +113,7 @@ export function AbbFluentPanel({
   selectedFeederTag,
   onPlace,
   disabled,
+  catalogItems,
 }: AbbFluentPanelProps) {
   const styles = useStyles();
   const [step, setStep] = useState<FlowStep>(1);
@@ -135,6 +138,20 @@ export function AbbFluentPanel({
       setCatalog([]);
       return;
     }
+    if (catalogItems) {
+      const symKey = symbolType === "mccb_ds" ? "mccb_ds" : symbolType;
+      const filtered = catalogItems.filter((c) => {
+        const st = c.symbolType ?? "";
+        if (symKey === "mccb_ds") return st.includes("mccb-ds") || st.includes("mccb_ds");
+        if (symKey === "mccb") return st.includes("mccb") && !st.includes("ds");
+        if (symKey === "contactor") return st.includes("k") || st.includes("contactor");
+        if (symKey === "motor") return st.includes("motor");
+        if (symKey === "fuse") return st.includes("fuse");
+        return true;
+      });
+      setCatalog(filtered);
+      return;
+    }
     setLoading(true);
     invoke<CatalogItemDto[]>("list_catalog_items", {
       manufacturer: "ABB",
@@ -143,7 +160,7 @@ export function AbbFluentPanel({
       .then(setCatalog)
       .catch(() => setCatalog([]))
       .finally(() => setLoading(false));
-  }, [symbolType]);
+  }, [symbolType, catalogItems]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
