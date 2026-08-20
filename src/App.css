@@ -116,6 +116,106 @@ button.secondary:hover:not(:disabled) {
   padding: 24px;
 }
 
+.sld-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sld-toolbar-spacer {
+  flex: 1;
+}
+
+.sld-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #252a33;
+  border-radius: 6px;
+  border: 1px solid #3a4150;
+}
+
+.palette-label {
+  color: #9aa3b2;
+  font-size: 0.8rem;
+  margin-right: 4px;
+}
+
+.palette-btn {
+  background: #3a4150;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.palette-btn.active,
+.palette-btn:hover {
+  background: #4a6fa5;
+}
+
+.status-chip {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-empty,
+.status-in_progress {
+  background: #3b2f1a;
+  color: #fbbf24;
+}
+
+.status-complete {
+  background: #14532d;
+  color: #86efac;
+}
+
+.sld-props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px;
+  background: #252a33;
+  border: 1px solid #3a4150;
+  border-radius: 6px;
+}
+
+.sld-props label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #9aa3b2;
+}
+
+.sld-props input {
+  background: #1a1d23;
+  border: 1px solid #3a4150;
+  border-radius: 4px;
+  color: #e8eaed;
+  padding: 6px 8px;
+  min-width: 100px;
+}
+
+button.primary-complete {
+  background: #16a34a;
+}
+
+button.primary-complete:hover:not(:disabled) {
+  background: #15803d;
+}
+
+button.danger {
+  background: #7f1d1d;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
 .sld-canvas-wrap {
   display: flex;
   flex-direction: column;

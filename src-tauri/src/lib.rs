@@ -1,6 +1,7 @@
 mod db;
 mod models;
 mod commands;
+mod sld;
 
 use db::{init_database, AppState};
 use std::sync::Mutex;
@@ -24,6 +25,9 @@ pub fn run() {
       commands::reset_demo_data,
       commands::get_schematic_sheet,
       commands::get_panel_entry_sheet,
+      commands::save_sld_content,
+      commands::complete_sld,
+      commands::list_sld_palette,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

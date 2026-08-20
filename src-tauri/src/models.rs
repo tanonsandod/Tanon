@@ -44,6 +44,7 @@ pub struct SchematicSheetDto {
   pub production_qty: i64,
   pub busbar_sections: Vec<BusbarSectionNode>,
   pub grid_unit_mm: f64,
+  pub sld_content: crate::sld::SldContent,
 }
 
 #[derive(Debug, Serialize, Clone)]

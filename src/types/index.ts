@@ -1,3 +1,7 @@
+import type { SldContent } from "./sld";
+
+export type { SldContent, SldDevice, SldFeeder, SldSymbolType } from "./sld";
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -26,6 +30,7 @@ export interface SchematicSheetDto {
   productionQty: number;
   busbarSections: BusbarSectionNode[];
   gridUnitMm: number;
+  sldContent: SldContent;
 }
 
 export interface PanelInstanceNode {

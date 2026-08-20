@@ -24,6 +24,20 @@ mod tests {
   }
 
   #[test]
+  fn mdb1_sld_has_q1_breaker() {
+    let conn = mem_db();
+    let json: String = conn
+      .query_row(
+        "SELECT content_json FROM panel_sheets WHERE id = 'sh-a01'",
+        [],
+        |r| r.get(0),
+      )
+      .unwrap();
+    assert!(json.contains("Q1"));
+    assert!(json.contains("mccb"));
+  }
+
+  #[test]
   fn migrations_are_idempotent() {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

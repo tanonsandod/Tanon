@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { SingleLineCanvas } from "./components/SingleLineCanvas";
+import { SldEditor } from "./components/sld/SldEditor";
 import {
   canOpenSheet,
   findEntrySheet,
@@ -36,6 +36,15 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const refreshTree = useCallback(async () => {
+    if (!tree) return;
+    const data = await invoke<ProjectTree>("get_project_tree", {
+      projectId: tree.project.id,
+    });
+    setTree(data);
+    return data;
+  }, [tree]);
+
   const openSchematic = useCallback(async (sheetId: string) => {
     const data = await invoke<SchematicSheetDto>("get_schematic_sheet", {
       sheetId,
@@ -43,6 +52,22 @@ function App() {
     setSchematic(data);
     return data;
   }, []);
+
+  const handleSldSaved = useCallback(
+    async (updated: SchematicSheetDto) => {
+      setSchematic(updated);
+      const data = await refreshTree();
+      if (data && selected?.kind === "sheet") {
+        const drawing = data.drawings.find((d) => d.drawingNo === selected.drawingNo);
+        const panel = drawing?.panels.find((p) => p.id === selected.panel.id);
+        const sheet = panel?.sheets.find((s) => s.id === updated.sheet.id);
+        if (panel && sheet) {
+          setSelected({ kind: "sheet", panel, drawingNo: selected.drawingNo, sheet });
+        }
+      }
+    },
+    [refreshTree, selected],
+  );
 
   const openPanelEntry = useCallback(
     async (panel: PanelDesignNode, drawingNo: string) => {
@@ -288,11 +313,11 @@ function App() {
             </div>
           )}
           {showSld && (
-            <SingleLineCanvas
-              panelCode={schematic.panelCode}
-              sheetName={schematic.sheet.displayName}
-              busbarSections={schematic.busbarSections}
-              gridUnitMm={schematic.gridUnitMm}
+            <SldEditor
+              schematic={schematic}
+              onSaved={handleSldSaved}
+              onCompleted={handleSldSaved}
+              onError={setError}
             />
           )}
           {schematic && !showSld && (
