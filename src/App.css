@@ -1,0 +1,430 @@
+:root {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #e8eaed;
+  background: #1a1d23;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #252a33;
+  border-bottom: 1px solid #3a4150;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #7cb8ff;
+}
+
+.app-header p {
+  margin: 2px 0 0;
+  color: #9aa3b2;
+  font-size: 0.85rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: #3a4150;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #4a5366;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-3col {
+  grid-template-columns: 280px 1fr 280px;
+}
+
+.schematic-panel {
+  padding: 16px;
+  overflow: auto;
+  background: #1a1d23;
+  border-right: 1px solid #3a4150;
+}
+
+.schematic-panel h2 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa3b2;
+}
+
+.schematic-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  border: 1px dashed #3a4150;
+  border-radius: 8px;
+  color: #9aa3b2;
+  text-align: center;
+  padding: 24px;
+}
+
+.sld-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sld-toolbar-spacer {
+  flex: 1;
+}
+
+.sld-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #252a33;
+  border-radius: 6px;
+  border: 1px solid #3a4150;
+}
+
+.palette-label {
+  color: #9aa3b2;
+  font-size: 0.8rem;
+  margin-right: 4px;
+}
+
+.palette-btn {
+  background: #3a4150;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.palette-btn.active,
+.palette-btn:hover {
+  background: #4a6fa5;
+}
+
+.status-chip {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-empty,
+.status-in_progress {
+  background: #3b2f1a;
+  color: #fbbf24;
+}
+
+.status-complete {
+  background: #14532d;
+  color: #86efac;
+}
+
+.sld-props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px;
+  background: #252a33;
+  border: 1px solid #3a4150;
+  border-radius: 6px;
+}
+
+.sld-props label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #9aa3b2;
+}
+
+.sld-props input {
+  background: #1a1d23;
+  border: 1px solid #3a4150;
+  border-radius: 4px;
+  color: #e8eaed;
+  padding: 6px 8px;
+  min-width: 100px;
+}
+
+button.primary-complete {
+  background: #16a34a;
+}
+
+button.primary-complete:hover:not(:disabled) {
+  background: #15803d;
+}
+
+button.danger {
+  background: #7f1d1d;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.sld-canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sld-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.sld-badge {
+  background: #3b2f1a;
+  color: #fbbf24;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sld-canvas {
+  width: 100%;
+  border: 1px solid #3a4150;
+  border-radius: 8px;
+  background: #12151a;
+}
+
+.sld-hint {
+  color: #9aa3b2;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.leaf-btn {
+  width: 100%;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leaf-btn.locked {
+  opacity: 0.55;
+}
+
+.entry-tag {
+  background: #3b2f1a;
+  color: #fbbf24;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.lock-tag {
+  margin-left: 4px;
+  font-size: 0.7rem;
+}
+
+.workflow-note {
+  background: #2d3f5e;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: #b8d4ff;
+}
+
+.tree-panel,
+.detail-panel {
+  padding: 16px;
+  overflow: auto;
+}
+
+.tree-panel {
+  background: #20242c;
+  border-right: 1px solid #3a4150;
+}
+
+.tree-panel h2,
+.detail-panel h2 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa3b2;
+}
+
+.tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.tree-btn {
+  background: transparent;
+  color: #e8eaed;
+  text-align: left;
+  padding: 4px 8px;
+  width: calc(100% - 24px);
+  display: inline-block;
+}
+
+.tree-btn.caret {
+  width: 24px;
+  padding: 4px;
+  color: #9aa3b2;
+}
+
+.tree-btn.active {
+  background: #2d3f5e;
+  border-radius: 4px;
+}
+
+.leaf {
+  color: #b8c0cc;
+  font-size: 0.85rem;
+  padding: 2px 8px 2px 24px;
+}
+
+.section-label {
+  color: #7cb8ff;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.card {
+  background: #252a33;
+  border: 1px solid #3a4150;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  color: #7cb8ff;
+}
+
+.card h4 {
+  margin: 16px 0 8px;
+  color: #9aa3b2;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 12px;
+}
+
+dt {
+  color: #9aa3b2;
+}
+
+dd {
+  margin: 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid #3a4150;
+  padding: 8px;
+  text-align: left;
+}
+
+.data-table th {
+  color: #9aa3b2;
+  font-weight: 600;
+}
+
+.data-table small {
+  color: #9aa3b2;
+}
+
+.muted {
+  color: #9aa3b2;
+}
+
+.error-banner {
+  background: #5c1f1f;
+  color: #ffb4b4;
+  padding: 8px 20px;
+}
+
+.status-bar {
+  padding: 6px 20px;
+  background: #252a33;
+  border-top: 1px solid #3a4150;
+  color: #9aa3b2;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1100px) {
+  .workspace,
+  .workspace-3col {
+    grid-template-columns: 1fr;
+  }
+}

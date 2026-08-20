@@ -1,0 +1,237 @@
+import type {
+  BomLineDto,
+  ProjectTree,
+  SchematicSheetDto,
+} from "../types";
+import type { CatalogItemDto } from "../types/sld";
+import { SHEET_TYPES } from "../lib/sheetWorkflow";
+
+export const MOCK_TREE: ProjectTree = {
+  project: {
+    id: "proj-e22",
+    name: "โรงงาน E22",
+    code: "E22",
+    customer: "Demo Customer Co.",
+    status: "active",
+    symbolStandard: "iec",
+    busbarRatingStandard: "DIN EN 61439",
+  },
+  drawings: [
+    {
+      id: "drw-e22-111",
+      drawingNo: "E22-111",
+      title: "MDB & Distribution Boards",
+      revision: "A",
+      status: "active",
+      panels: [
+        {
+          id: "pnl-mdb1",
+          panelCode: "MDB1",
+          name: "Main Distribution Board",
+          productionQty: 1,
+          sheetPrefix: "ELE A",
+          sheets: [
+            {
+              id: "sh-a01",
+              sheetNo: "A01",
+              displayName: "ELE A01 — Single Line",
+              title: "Single Line Diagram",
+              sheetType: SHEET_TYPES.SINGLE_LINE,
+              sortOrder: 1,
+              schematicStatus: "in_progress",
+            },
+            {
+              id: "sh-a02",
+              sheetNo: "A02",
+              displayName: "ELE A02 — Power",
+              title: "Power Circuit",
+              sheetType: SHEET_TYPES.POWER,
+              sortOrder: 2,
+              schematicStatus: "empty",
+            },
+            {
+              id: "sh-a03",
+              sheetNo: "A03",
+              displayName: "ELE A03 — Control",
+              title: "Control Circuit",
+              sheetType: SHEET_TYPES.CONTROL,
+              sortOrder: 3,
+              schematicStatus: "empty",
+            },
+          ],
+          instances: [],
+          busbarSections: [
+            {
+              id: "bbs-mdb-main",
+              sectionRole: "main",
+              feederTag: null,
+              sizeLabel: "100×10×2",
+              ratedCurrentA: 2500,
+              icwKa: 50,
+              barsPerPhase: 2,
+              lengthMm: 1200,
+            },
+          ],
+        },
+        {
+          id: "pnl-db",
+          panelCode: "DB",
+          name: "Distribution Board",
+          productionQty: 10,
+          sheetPrefix: "ELE B",
+          sheets: [
+            {
+              id: "sh-b01",
+              sheetNo: "B01",
+              displayName: "ELE B01 — Single Line",
+              title: "Single Line Diagram",
+              sheetType: SHEET_TYPES.SINGLE_LINE,
+              sortOrder: 1,
+              schematicStatus: "in_progress",
+            },
+          ],
+          instances: Array.from({ length: 3 }, (_, i) => ({
+            id: `inst-db-${i + 1}`,
+            instanceNo: i + 1,
+            assetTag: `DB-${String(i + 1).padStart(2, "0")}`,
+            serialNo: `SN-2026-${1000 + i}`,
+            status: "planned",
+          })),
+          busbarSections: [
+            {
+              id: "bbs-db-main",
+              sectionRole: "main",
+              feederTag: null,
+              sizeLabel: "50×5",
+              ratedCurrentA: 630,
+              icwKa: 25,
+              barsPerPhase: 1,
+              lengthMm: 800,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+export const MOCK_SCHEMATIC: SchematicSheetDto = {
+  sheet: MOCK_TREE.drawings[0].panels[0].sheets[0],
+  panelCode: "MDB1",
+  panelName: "Main Distribution Board",
+  drawingNo: "E22-111",
+  productionQty: 1,
+  gridUnitMm: 5,
+  busbarSections: MOCK_TREE.drawings[0].panels[0].busbarSections,
+  sldContent: {
+    version: 1,
+    incomingLabel: "400V 3Ph 50Hz",
+    incomingVoltage: "From Transformer T1",
+    manufacturerDefault: "ABB",
+    feeders: [
+      {
+        id: "feeder-f1",
+        busbarSectionId: "bbs-mdb-main",
+        tag: "F1",
+        ratedCurrentA: 800,
+        sizeLabel: "50×10",
+        devices: [
+          {
+            id: "dev-q1",
+            symbolType: "mccb",
+            tag: "Q1",
+            rating: "250A",
+            catalogItemId: "cat-abb-xt4-250",
+            manufacturer: "ABB",
+            partNumber: "1SDA068337R1",
+            description: "Tmax XT4N 250 TMD R250 3p",
+          },
+          {
+            id: "dev-m1",
+            symbolType: "motor",
+            tag: "M1",
+            rating: "75kW",
+            catalogItemId: "cat-abb-motor75",
+            manufacturer: "ABB",
+            partNumber: "M2BA132S-4",
+            description: "Motor 75kW 400V IE3",
+          },
+        ],
+      },
+    ],
+  },
+};
+
+export const MOCK_BOM: BomLineDto[] = [
+  {
+    partNumber: "BB-CU-100x10x2",
+    description: "Copper busbar 100×10×2",
+    panelCode: "MDB1",
+    qtyPerPanel: 6,
+    panelQty: 1,
+    totalQty: 6,
+    unit: "m",
+  },
+  {
+    partNumber: "BB-CU-50x5",
+    description: "Copper busbar 50×5",
+    panelCode: "DB",
+    qtyPerPanel: 4,
+    panelQty: 10,
+    totalQty: 40,
+    unit: "m",
+  },
+];
+
+export const MOCK_ABB_CATALOG: CatalogItemDto[] = [
+  {
+    id: "cat-abb-xt4-250",
+    manufacturer: "ABB",
+    partNumber: "1SDA068337R1",
+    description: "Tmax XT4N 250 TMD R250 3p",
+    ratingJson: '{"current":"250A","poles":3,"icu":"36kA","series":"Tmax XT4"}',
+    listPrice: 28500,
+    categoryCode: "mccb",
+    symbolType: "sym-sld-mccb",
+  },
+  {
+    id: "cat-abb-xt4-160",
+    manufacturer: "ABB",
+    partNumber: "1SDA068326R1",
+    description: "Tmax XT4N 160 TMD R160 3p",
+    ratingJson: '{"current":"160A","poles":3,"icu":"36kA","series":"Tmax XT4"}',
+    listPrice: 19800,
+    categoryCode: "mccb",
+    symbolType: "sym-sld-mccb",
+  },
+  {
+    id: "cat-abb-xt4-100",
+    manufacturer: "ABB",
+    partNumber: "1SDA068318R1",
+    description: "Tmax XT4N 100 TMD R100 3p",
+    ratingJson: '{"current":"100A","poles":3,"icu":"36kA","series":"Tmax XT4"}',
+    listPrice: 12400,
+    categoryCode: "mccb",
+    symbolType: "sym-sld-mccb",
+  },
+  {
+    id: "cat-abb-af09",
+    manufacturer: "ABB",
+    partNumber: "1SBL137001R1300",
+    description: "AF09-30-10-13 Contactor 9A",
+    ratingJson: '{"current":"9A","coil":"24V DC","series":"AF"}',
+    listPrice: 1850,
+    categoryCode: "contactor",
+    symbolType: "sym-sld-k",
+  },
+  {
+    id: "cat-abb-motor75",
+    manufacturer: "ABB",
+    partNumber: "M2BA132S-4",
+    description: "Motor 75kW 400V IE3",
+    ratingJson: '{"power":"75kW","voltage":"400V","series":"M2BA"}',
+    listPrice: 89500,
+    categoryCode: "motor",
+    symbolType: "sym-sld-motor",
+  },
+];
